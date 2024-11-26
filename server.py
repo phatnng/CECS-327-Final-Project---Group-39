@@ -1,8 +1,10 @@
 import socket
 import threading
-from MongoDBConnection import query_database  # Import the database querying function
+from pymongo import MongoClient
+#from MongoDBConnection import query_database  # Import the database querying function
 
 maxPacketSize = 1024
+
 
 def listen_on_tcp(tcp_socket: socket.socket, address):
     print(f"Connected to {address}")
@@ -58,6 +60,16 @@ def launch_tcp_threads():
             threading.Thread(target=listen_on_tcp, args=(conn_socket, conn_address)).start()
     except KeyboardInterrupt:
         tcp_socket.close()
+
+#def query_database():
+
+
+
+# def calc_avg_moisture(data_table):
+
+# def calc_avg_cycle(data_table):
+
+# def calc_max_electricity(data_table):
 
 
 if __name__ == "__main__":
