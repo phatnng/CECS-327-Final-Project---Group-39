@@ -1,5 +1,5 @@
 from pymongo import MongoClient
-
+from datetime import datetime
 
 client = MongoClient("my db")
 db = client["test"]
@@ -9,8 +9,8 @@ pipeline = [
     {
         '$lookup': {
             'from': '327IoT_metadata', 
-            'localField': 'assetUid', 
-            'foreignField': 'payload.asset_uid', 
+            'localField': 'payload.parent_asset_uid', 
+            'foreignField': 'assetUid', 
             'as': 'metadata'
         }
     }, {
@@ -19,9 +19,9 @@ pipeline = [
         }
     }, {
         '$project': {
+            'Name': '$metadata.customAttributes.name', 
             '_id': 1, 
-            'time': 1, 
-            'Name': '$metadata.customAttributes.name',
+            'time': 1,  
             'Amps': {
                 '$ifNull': [
                     '$payload.Ammeter for SF1', {
@@ -40,8 +40,8 @@ pipeline = [
                 '$ifNull': [
                     '$payload.Thermistor for SF1', '$payload.Thermistor for SF2'
                 ]
-            },
-            'Gallons': '$payload.Water Sensor for DW', 
+            }, 
+            'Gallons': '$payload.Water Sensor for DW'
         }
     }
 ]
