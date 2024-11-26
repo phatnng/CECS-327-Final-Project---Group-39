@@ -1,39 +1,47 @@
 from pymongo import MongoClient
 
 
-client = MongoClient("message me for DB info")
+client = MongoClient("my db")
 db = client["test"]
 collection = db["327IoT_virtual"]
 
 pipeline = [
     {
-        "$project": {
-            "_id": 1,
-            "Gallons": "$payload.Water Sensor for DW",
-            "Amps": {
-                "$ifNull": [
-                    "$payload.Ammeter for SF1", 
-                    {
-                        "$ifNull": [
-                            "$payload.Ammeter for SF2", 
-                            "$payload.Ammeter for DW"
+        '$lookup': {
+            'from': '327IoT_metadata', 
+            'localField': 'assetUid', 
+            'foreignField': 'payload.asset_uid', 
+            'as': 'metadata'
+        }
+    }, {
+        '$unwind': {
+            'path': '$metadata'
+        }
+    }, {
+        '$project': {
+            '_id': 1, 
+            'time': 1, 
+            'Name': '$metadata.customAttributes.name',
+            'Amps': {
+                '$ifNull': [
+                    '$payload.Ammeter for SF1', {
+                        '$ifNull': [
+                            '$payload.Ammeter for SF2', '$payload.Ammeter for DW'
                         ]
                     }
                 ]
-            },
-            "Fahrenheit": {
-                "$ifNull": [
-                    "$payload.Thermistor for SF1", 
-                    "$payload.Thermistor for SF2"
+            }, 
+            'Fahrenheit': {
+                '$ifNull': [
+                    '$payload.Thermistor for SF1', '$payload.Thermistor for SF2'
+                ]
+            }, 
+            'Humidity': {
+                '$ifNull': [
+                    '$payload.Thermistor for SF1', '$payload.Thermistor for SF2'
                 ]
             },
-            "Humidity": {
-                "$ifNull": [
-                    "$payload.Thermistor for SF1", 
-                    "$payload.Thermistor for SF2"
-                ]
-            },
-            "asset_uid": "$payload.asset_uid"
+            'Gallons': '$payload.Water Sensor for DW', 
         }
     }
 ]
