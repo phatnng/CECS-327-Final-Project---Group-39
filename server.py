@@ -130,7 +130,25 @@ def calc_avg_moisture(data_table):
             counter += 1
     return f'Average moisture of the Kitchen fidge is: {sum/counter:.2f}'
 
-# def calc_avg_cycle(data_table):
+def calc_avg_cycle(data_table):
+    """
+    Calculates the average water consumption per cycle for the Smart Dishwasher.
+    """
+    total_water = 0
+    count = 0
+
+    for key, data in data_table.items():
+        # Filter for Smart Dishwasher and ensure 'Gallons' field exists
+        if data.get('Name') == 'Smart Dishwasher' and data.get('Gallons') is not None:
+            total_water += float(data['Gallons'])  # Sum up the water usage
+            count += 1  # Count the cycles
+
+    if count == 0:  # Handle the case where no cycles are recorded
+        return "No data available for water consumption cycles."
+
+    # Calculate the average water consumption per cycle
+    avg_water = total_water / count
+    return f"Average water consumption per cycle for the smart dishwasher: {avg_water:.2f} gallons."
 
 def calc_max_electricity(data_table):
     electricity_usage = {'Fridge 1': 0, 'Fridge 2': 0, 'Dishwasher': 0}
