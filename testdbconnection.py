@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 
 
 def query_database():
-    client = MongoClient("my db")
+    client = MongoClient("my_db")
     db = client["test"]
     collection = db["327IoT_virtual"]
 
@@ -77,23 +77,43 @@ def calc_max_electricity(data_table):
     electricity_usage = {'Fridge 1': 0, 'Fridge 2': 0, 'Dishwasher': 0}
     for key, data in data_table.items():
         if data.get('Name') == 'Smart Refrigerator' and data.get('Amps') is not None:
-            electricity_usage['Fridge 1'] += float(data.get('Amps')) / 60
+            electricity_usage['Fridge 1'] += float(data.get('Amps'))
         if data.get('Name') == 'Smart Refrigerator 2' and data.get('Amps') is not None:
-            electricity_usage['Fridge 2'] += float(data.get('Amps')) / 60
+            electricity_usage['Fridge 2'] += float(data.get('Amps'))
         if data.get('Name') == 'Smart Dishwasher' and data.get('Amps') is not None:
-            electricity_usage['Dishwasher'] += float(data.get('Amps')) / 60
+            electricity_usage['Dishwasher'] += float(data.get('Amps'))
     print(electricity_usage)
     max_device = max(electricity_usage, key=electricity_usage.get)
-    max_value = (electricity_usage[max_device] * 120)
+    max_value = ((electricity_usage[max_device] / 60) * 120)
     return f'{max_device} used the most electricity with {max_value} Watts'
 
-#def calc_avg_cycle(data_table):
+def calc_avg_cycle(data_table):
+    """
+    Calculates the average water consumption per cycle for the Smart Dishwasher.
+    """
+    total_water = 0
+    count = 0
+
+    for key, data in data_table.items():
+        # Filter for Smart Dishwasher and ensure 'Gallons' field exists
+        if data.get('Name') == 'Smart Dishwasher' and data.get('Gallons') is not None:
+            total_water += float(data['Gallons'])  # Sum up the water usage
+            count += 1  # Count the cycles
+
+    if count == 0:  # Handle the case where no cycles are recorded
+        return "No data available for water consumption cycles."
+
+    # Calculate the average water consumption per cycle
+    avg_water = total_water / count
+    return f"Average water consumption per cycle for the smart dishwasher: {avg_water:.2f} gallons."
+
     
 
 def main():
     data_table = query_database()
     print(calc_max_electricity(data_table))
     print(calc_avg_moisture(data_table))
+    print(calc_avg_cycle(data_table))
     #for key, data in data_table.items():
     #    print(data)
 
