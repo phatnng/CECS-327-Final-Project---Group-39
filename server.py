@@ -14,14 +14,14 @@ def listen_on_tcp(tcp_socket: socket.socket, address):
             client_message = tcp_socket.recv(maxPacketSize).decode()
             if not client_message or client_message.lower() == 'exit':
                 break
-
+            data_table = query_database()
             # Query processing
             if client_message == "What is the average moisture inside my kitchen fridge in the past three hours?":
-                response = query_database("fridge_moisture", "3_hours_avg")
+                response = calc_avg_moisture(data_table)
             elif client_message == "What is the average water consumption per cycle in my smart dishwasher?":
-                response = query_database("dishwasher", "water_cycle_avg")
+                response = calc_avg_cycle(data_table)
             elif client_message == "Which device consumed more electricity among my three IoT devices?":
-                response = query_database("electricity_consumption", "compare_devices")
+                response = calc_max_electricity(data_table)
             else:
                 response = "Sorry, this query cannot be processed. Please try one of the valid queries."
 
@@ -63,7 +63,7 @@ def launch_tcp_threads():
         tcp_socket.close()
 
 def query_database():
-    client = MongoClient("my db")
+    client = MongoClient("my_db")
     db = client["test"]
     collection = db["327IoT_virtual"]
 
@@ -120,15 +120,19 @@ def query_database():
 
 
 def calc_avg_moisture(data_table):
+    """
+    Caclulates the average Humidity in the kitchen fridge
+    """
     sum = 0
     counter = 0
-    current_time = datetime.now()
-    cutoff_time = current_time - timedelta(hours = 3)
+    current_time = datetime.now() #get the current time
+    cutoff_time = current_time - timedelta(hours = 3) #used to filter time down to the last 3 hours
     for key, data in data_table.items():
+        #only check the data for the last 3 hours of a specific frdge with humidity values
         if data.get('time') > cutoff_time and data.get('Name') == 'Smart Refrigerator' and data.get('Humidity') is not None:
             sum += float(data.get('Humidity'))
             counter += 1
-    return f'Average moisture of the Kitchen fidge is: {sum/counter:.2f}'
+    return f'Average moisture of the Kitchen fidge is: {sum/counter:.2f}% RH'
 
 def calc_avg_cycle(data_table):
     """
@@ -151,6 +155,8 @@ def calc_avg_cycle(data_table):
     return f"Average water consumption per cycle for the smart dishwasher: {avg_water:.2f} gallons."
 
 def calc_max_electricity(data_table):
+    volts = 120 #All 3 devices use 120 volts
+    time = 60 #Used to take the average amps in 1 hour
     electricity_usage = {'Fridge 1': 0, 'Fridge 2': 0, 'Dishwasher': 0}
     for key, data in data_table.items():
         if data.get('Name') == 'Smart Refrigerator' and data.get('Amps') is not None:
@@ -159,9 +165,10 @@ def calc_max_electricity(data_table):
             electricity_usage['Fridge 2'] += float(data.get('Amps'))
         if data.get('Name') == 'Smart Dishwasher' and data.get('Amps') is not None:
             electricity_usage['Dishwasher'] += float(data.get('Amps'))
-    max_device = max(electricity_usage, key=electricity_usage.get)
-    max_value = electricity_usage[max_device]
-    return f'{max_device} used the most electricity with {max_value} Amps'
+    print(electricity_usage)
+    max_device = max(electricity_usage, key=electricity_usage.get) #Get the name of the device that has the most amount of current flowing to it
+    max_value = ((electricity_usage[max_device] / time) * volts) #Convert it to watts for power usage
+    return f'{max_device} used the most electricity with {max_value} Watts'
 
 
 if __name__ == "__main__":
