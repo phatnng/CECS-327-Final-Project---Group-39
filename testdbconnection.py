@@ -40,7 +40,7 @@ def query_database():
                 }, 
                 'Humidity': {
                     '$ifNull': [
-                        '$payload.Thermistor for SF1', '$payload.Thermistor for SF2'
+                        '$payload.Humidity for SF1', '$payload.Humidity for SF2'
                     ]
                 }, 
                 'Gallons': '$payload.Water Sensor for DW'
@@ -68,9 +68,8 @@ def calc_avg_moisture(data_table):
         for key, data in data_table.items():
             if data.get('time') > cutoff_time and data.get('Name') == 'Smart Refrigerator' and data.get('Humidity') is not None:
                 sum += float(data.get('Humidity'))
-                print (sum)
                 counter += 1
-        return f'Average moisture of the Kitchen fidge is: {sum/counter:.2f}'
+        return f'Average moisture of the Kitchen fidge is: {sum/counter:.2f}% RH'
     except:
         print("Failed")
 
@@ -78,15 +77,15 @@ def calc_max_electricity(data_table):
     electricity_usage = {'Fridge 1': 0, 'Fridge 2': 0, 'Dishwasher': 0}
     for key, data in data_table.items():
         if data.get('Name') == 'Smart Refrigerator' and data.get('Amps') is not None:
-            electricity_usage['Fridge 1'] += float(data.get('Amps'))
+            electricity_usage['Fridge 1'] += float(data.get('Amps')) / 60
         if data.get('Name') == 'Smart Refrigerator 2' and data.get('Amps') is not None:
-            electricity_usage['Fridge 2'] += float(data.get('Amps'))
+            electricity_usage['Fridge 2'] += float(data.get('Amps')) / 60
         if data.get('Name') == 'Smart Dishwasher' and data.get('Amps') is not None:
-            electricity_usage['Dishwasher'] += float(data.get('Amps'))
+            electricity_usage['Dishwasher'] += float(data.get('Amps')) / 60
     print(electricity_usage)
     max_device = max(electricity_usage, key=electricity_usage.get)
-    max_value = electricity_usage[max_device]
-    return f'{max_device} used the most electricity with {max_value} Amps'
+    max_value = (electricity_usage[max_device] * 120)
+    return f'{max_device} used the most electricity with {max_value} Watts'
 
 #def calc_avg_cycle(data_table):
     
@@ -94,7 +93,7 @@ def calc_max_electricity(data_table):
 def main():
     data_table = query_database()
     print(calc_max_electricity(data_table))
-    #calc_avg_moisture(data_table)
+    print(calc_avg_moisture(data_table))
     #for key, data in data_table.items():
     #    print(data)
 
