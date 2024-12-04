@@ -1,0 +1,6 @@
+#How to start
+1. Install the requirements like mongodb and pytz
+2. Run the server and the client
+3. After running the server and the client, type in your ip address and the ports that you want to use.
+4. After connecting to the server there should be a prompt to ask you what you want to do.
+5. Finally, after choosing a prompt it should display the data that you want to see. 
