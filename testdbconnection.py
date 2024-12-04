@@ -1,5 +1,6 @@
 from pymongo import MongoClient
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+import pytz
 
 
 def query_collection(filter_pipeline, key_field="_id"):
@@ -17,11 +18,6 @@ def query_collection(filter_pipeline, key_field="_id"):
 
 
 def calc_avg_moisture():
-    """
-    Calculates the average humidity for the Smart Refrigerator over the last 3 hours.
-    """
-    current_time = datetime.now()
-    cutoff_time = current_time - timedelta(hours=3)
 
     pipeline = [
         {
@@ -36,13 +32,13 @@ def calc_avg_moisture():
         {
             '$match': {
                 'metadata.customAttributes.name': 'Smart Refrigerator',
-                'time': {'$gte': cutoff_time},
                 'payload.Humidity for SF1': {'$exists': True}
             }
         },
         {
             '$project': {
                 '_id': 1,
+                'time': '$payload.timestamp',
                 'Humidity': '$payload.Humidity for SF1',
             }
         }
@@ -50,21 +46,27 @@ def calc_avg_moisture():
 
     documents = query_collection(pipeline)
 
-    total_humidity = sum(float(doc['Humidity']) for doc in documents.values())
-    count = len(documents)
-   
+    current_time = datetime.now()
+    cutoff_time = current_time - timedelta(hours=3)
+    pst_timezone = pytz.timezone('US/Pacific')
+    formatted_time = cutoff_time.astimezone(pst_timezone).strftime('%I:%M %p %Z')    
+
+    filtered_docs = {
+        key: doc for key, doc in documents.items()
+        if datetime.fromtimestamp(int(doc['time'])) > cutoff_time
+    }
+
+    total_humidity = sum(float(doc['Humidity']) for doc in filtered_docs.values())
+    count = len(filtered_docs)
+
     if count == 0:
         return "No humidity data available for the Smart Refrigerator in the last 3 hours."
 
     avg_humidity = total_humidity / count
-    return f'Average moisture of the Kitchen fridge is: {avg_humidity:.2f}% RH'
+    return f'Average moisture of the Kitchen fridge is {avg_humidity:.2f}% RH since {formatted_time}'
 
 
 def calc_max_electricity():
-    """
-    Calculates the maximum electricity usage among Fridge 1, Fridge 2, and Dishwasher,
-    directly using device names.
-    """
     pipeline = [
         {
             '$lookup': {
@@ -87,7 +89,6 @@ def calc_max_electricity():
                 '_id': 1,
                 'Name': '$metadata.customAttributes.name',
                 'Amps': {
-                    # Safely handle missing fields
                     '$ifNull': [
                         '$payload.Ammeter for SF1',
                         {
@@ -112,8 +113,8 @@ def calc_max_electricity():
 
     # Sum up electricity usage per device using the Name field
     for doc in documents.values():
-        device_name = doc.get('Name')  # Use the Name field directly
-        amps = doc.get('Amps')  # Safely get 'Amps' field
+        device_name = doc.get('Name')
+        amps = doc.get('Amps')
         if device_name and amps is not None:
             if device_name not in electricity_usage:
                 electricity_usage[device_name] = 0
@@ -121,8 +122,8 @@ def calc_max_electricity():
 
     # Find the device with maximum electricity usage
     max_device = max(electricity_usage, key=electricity_usage.get)
-    max_value = ((electricity_usage[max_device] / 60) * 120)  # Convert to watts over an hour
-    return f'{max_device} used the most electricity with {max_value:.2f} Watts'
+    max_value = (((electricity_usage[max_device] / 30) * 120) / 1000)  # Convert to watts over an hour
+    return f'{max_device} used the most electricity with {max_value:.2f} kWh'
 
 
 
