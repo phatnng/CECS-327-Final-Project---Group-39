@@ -6,19 +6,27 @@ import pytz
 def query_collection(filter_pipeline, key_field="_id"):
     """
     Helper function to query the database with a specific pipeline and return results as a hashmap.
+    - `filter_pipeline`: The MongoDB aggregation pipeline to filter and process the data.
+    - `key_field`: The field to use as the key for the resulting hashmap.
     """
+    # Connect to MongoDB using the provided URI
     client = MongoClient("mongodb+srv://frankieandrade1127:AEHx7Srq0Wg1EhWg@327cluster.kkgy3.mongodb.net/?retryWrites=true&w=majority&appName=327Cluster")
-    db = client["test"]
-    collection = db["327IoT_virtual"]
+    db = client["test"]  # Access the "test" database
+    collection = db["327IoT_virtual"]  # Access the "327IoT_virtual" collection
 
+    # Execute the aggregation pipeline and create a dictionary of results
     cursor = collection.aggregate(filter_pipeline)
     data = {str(doc[key_field]): doc for doc in cursor if key_field in doc}  # Build the hashmap
-    client.close()
+
+    client.close()  # Close the database connection
     return data
 
 
 def calc_avg_moisture():
-
+    """
+    Calculates the average humidity inside the Smart Refrigerator for the last 3 hours.
+    """
+    # Define the aggregation pipeline
     pipeline = [
         {
             '$lookup': {
@@ -46,16 +54,19 @@ def calc_avg_moisture():
 
     documents = query_collection(pipeline)
 
+    # Determine the cutoff time for the last 3 hours
     current_time = datetime.now()
     cutoff_time = current_time - timedelta(hours=3)
     pst_timezone = pytz.timezone('US/Pacific')
     formatted_time = cutoff_time.astimezone(pst_timezone).strftime('%I:%M %p %Z')    
 
+    # Filter documents within the last 3 hours
     filtered_docs = {
         key: doc for key, doc in documents.items()
         if datetime.fromtimestamp(int(doc['time'])) > cutoff_time
     }
 
+    # Calculate the average humidity
     total_humidity = sum(float(doc['Humidity']) for doc in filtered_docs.values())
     count = len(filtered_docs)
 
@@ -67,6 +78,9 @@ def calc_avg_moisture():
 
 
 def calc_max_electricity():
+    """
+    Identifies which IoT device consumed the most electricity and calculates its usage.
+    """
     pipeline = [
         {
             '$lookup': {
@@ -105,13 +119,10 @@ def calc_max_electricity():
         }
     ]
 
-    # Query the database to retrieve electricity usage
     documents = query_collection(pipeline)
 
-    # Dictionary to store total electricity usage for each device
+    # Accumulate electricity usage per device
     electricity_usage = {}
-
-    # Sum up electricity usage per device using the Name field
     for doc in documents.values():
         device_name = doc.get('Name')
         amps = doc.get('Amps')
@@ -120,11 +131,10 @@ def calc_max_electricity():
                 electricity_usage[device_name] = 0
             electricity_usage[device_name] += float(amps)
 
-    # Find the device with maximum electricity usage
+    # Determine the device with maximum electricity usage
     max_device = max(electricity_usage, key=electricity_usage.get)
-    max_value = (((electricity_usage[max_device] / 30) * 120) / 1000)  # Convert to watts over an hour
+    max_value = (((electricity_usage[max_device] / 30) * 120) / 1000)  # Convert to kilowatt-hours
     return f'{max_device} used the most electricity with {max_value:.2f} kWh'
-
 
 
 def calc_avg_cycle():
@@ -156,6 +166,8 @@ def calc_avg_cycle():
     ]
 
     documents = query_collection(pipeline)
+
+    # Calculate the average water usage per cycle
     total_water = sum(float(doc['Gallons']) for doc in documents.values())
     count = len(documents)
 
@@ -167,11 +179,14 @@ def calc_avg_cycle():
 
 
 def main():
+    """
+    Main function to execute the calculations and print the results.
+    """
     print(calc_max_electricity())
     print(calc_avg_moisture())
     print(calc_avg_cycle())
 
 
-# Run the main function
+# Run the main function if this script is executed
 if __name__ == "__main__":
     main()
